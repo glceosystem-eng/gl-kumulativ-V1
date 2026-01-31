@@ -1,0 +1,752 @@
+[index.html](https://github.com/user-attachments/files/24976195/index.html)
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>GL Map</title>
+  <style>
+    :root{
+      --bg: #0b0f14;
+      --panel: rgba(18, 24, 32, 0.92);
+      --panel2: rgba(18, 24, 32, 0.72);![mapa](https://github.com/user-attachments/assets/111e0f30-90fe-419d-b5ca-0bd799abd723)
+
+      --text: #e8eef6;
+      --muted: rgba(232, 238, 246, 0.65);
+      --shadow: 0 14px 45px rgba(0,0,0,0.55);
+      --radius: 18px;
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 900px at 50% 40%, #1a2330 0%, var(--bg) 55%, #05070b 100%);
+      color: var(--text);
+    }
+
+    /* Page layout */
+    .page{
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar{
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .pill{
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .wrap{
+      width: min(1280px, calc(100vw - 24px));
+      margin: 0 auto 22px auto;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .editor{
+      display: none;
+      padding: 10px 12px 12px 12px;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .editor.on{ display: block; }
+
+    .editorRow{
+      display: grid;
+      grid-template-columns: 180px 1fr 180px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .editorRow.small{
+      grid-template-columns: 180px 1fr 180px 1fr 180px 1fr;
+    }
+
+    .editorTop{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .btn{
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.92);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .btn:hover{ background: rgba(255,255,255,0.09); }
+    .btn.primary{
+      background: rgba(52, 168, 83, 0.22);
+      border-color: rgba(52, 168, 83, 0.35);
+    }
+    .btn.danger{
+      background: rgba(234, 67, 53, 0.22);
+      border-color: rgba(234, 67, 53, 0.35);
+    }
+    .btn.warn{
+      background: rgba(251, 188, 5, 0.20);
+      border-color: rgba(251, 188, 5, 0.35);
+    }
+
+    label{
+      font-size: 12px;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    input[type="text"], input[type="url"], select{
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.35);
+      color: rgba(255,255,255,0.92);
+      outline: none;
+      font-size: 13px;
+    }
+
+    input[type="color"]{
+      width: 100%;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.35);
+      padding: 2px;
+    }
+
+    .hint{
+      font-size: 12px;
+      color: rgba(232,238,246,0.68);
+      line-height: 1.35;
+      margin-top: 6px;
+      user-select: none;
+    }
+
+    .hint code{
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+
+    /* Map stage */
+    .stage{
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2048 / 874; /* tvoje mapa */
+      background: #0a0d12;
+    }
+
+    .mapImg{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none; /* aby se lépe chytaly štítky */
+    }
+
+    .badge{
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: #fff1a6;
+      border: 1px solid rgba(0,0,0,0.20);
+      border-radius: 10px;
+      padding: 7px 10px;
+      color: rgba(0,0,0,0.86);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.28);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap; /* 1 řádek */
+      line-height: 1;
+    }
+
+    .badge .line{
+      font-weight: 700;
+      letter-spacing: 0.1px;
+    }
+
+    /* Global scaling (default 0.5 = "o půlku menší") */
+    .badge{
+      font-size: calc(14px * var(--badgeScale));
+      padding: calc(7px * var(--badgeScale)) calc(10px * var(--badgeScale));
+      border-radius: calc(10px * var(--badgeScale));
+    }
+
+    /* Selected state in edit */
+    .badge.selected{
+      outline: 2px solid rgba(255,255,255,0.9);
+      outline-offset: 3px;
+    }
+
+    /* Mobile: držet mapu v obrazovce, žádné obří prázdno */
+    .viewport{
+      padding: 10px;
+    }
+
+    @media (max-width: 720px){
+      .wrap{ width: calc(100vw - 16px); border-radius: 18px; }
+      .viewport{ padding: 8px; }
+      .editorRow, .editorRow.small{ grid-template-columns: 1fr; }
+      .topbar{ justify-content: flex-start; overflow-x: auto; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="pill">GL mapa</span>
+      <span class="pill" id="modePill">VIEW</span>
+      <span class="pill" id="scalePill">scale: 0.50</span>
+    </div>
+
+    <div class="viewport">
+      <div class="wrap">
+        <div class="editor" id="editor">
+          <div class="editorTop">
+            <button class="btn primary" id="toggleEditBtn">EDIT: ON</button>
+            <button class="btn" id="addSalonBtn">Přidat salon</button>
+            <button class="btn" id="exportBtn">Export JSON</button>
+            <button class="btn" id="importBtn">Import JSON</button>
+            <button class="btn danger" id="resetBtn">Reset na default</button>
+          </div>
+
+          <div class="editorRow small">
+            <div>
+              <label>Vybraný salon_id</label>
+              <select id="salonSelect"></select>
+            </div>
+
+            <div>
+              <label>Název (zobrazení)</label>
+              <input type="text" id="nameInput" placeholder="Hairdo" />
+            </div>
+
+            <div>
+              <label>Pozadí štítku</label>
+              <input type="color" id="bgColorInput" />
+            </div>
+
+            <div>
+              <label>Odkaz (volitelně)</label>
+              <input type="url" id="linkInput" placeholder="https://..." />
+            </div>
+
+            <div>
+              <label>Globální velikost</label>
+              <input type="text" id="scaleInput" placeholder="0.50" />
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center;">
+              <label style="margin:0;">Zobrazovat datum</label>
+              <input type="checkbox" id="showDateToggle" checked />
+            </div>
+          </div>
+
+          <div class="editorTop" style="margin-top:6px;">
+            <button class="btn primary" id="saveTextBtn">Uložit text</button>
+            <button class="btn" id="copyPosBtn">Zkopírovat pozici</button>
+            <button class="btn danger" id="deleteBtn">Smazat vybraný</button>
+          </div>
+
+          <div class="hint">
+            Edit mód: klikni na štítek a táhni. Pozice se ukládá v procentech, takže se to nerozjede na mobilu.
+            Tip: pro jemný posun drž <code>Shift</code> a táhni pomalu.
+            Mobil: edit otevřeš přes URL s <code>?edit=1</code>.
+          </div>
+        </div>
+
+        <div class="stage" id="stage">
+          <!-- Pozadí mapy -->
+          <img class="mapImg" src="mapa.jpg" alt="Mapa" />
+          <!-- Štítky se renderují přes JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Jak to funguje (stručně):
+     * - "layout" (pozice, barvy, název, link) ukládáme do localStorage v prohlížeči
+     * - později: "data" (tržby, podíl, datum) budeme brát z Google Sheets přes Apps Script endpoint (podle salon_id)
+     */
+
+    const STORAGE_KEY = "gl_map_layout_v3";
+    const DEFAULT_BADGE_SCALE = 0.50;
+
+    // Zapnutí editoru přes query param: ?edit=1
+    const params = new URLSearchParams(location.search);
+    const EDIT_MODE = params.get("edit") === "1";
+
+    // Globální nastavení UI
+    const appState = {
+      badgeScale: DEFAULT_BADGE_SCALE,
+      showDate: true,
+      selectedId: null,
+      // Sem půjdou živá data z Google Sheets
+      liveDataById: {} // { salon_id: { value, pct, last } }
+    };
+
+    // Default layout (jen pár – přidej si přes editor)
+    const defaultLayout = {
+      badgeScale: DEFAULT_BADGE_SCALE,
+      showDate: true,
+      salons: [
+        {
+          id: "salon_hairdo",
+          name: "Hairdo",
+          xPct: 8.4,
+          yPct: 57.3,
+          bg: "#fff1a6",
+          link: ""
+        },
+        {
+          id: "salon_viador",
+          name: "Viador",
+          xPct: 8.4,
+          yPct: 67.5,
+          bg: "#fff1a6",
+          link: ""
+        }
+      ]
+    };
+
+    // ---------- Load / Save ----------
+    function loadLayout(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return structuredClone(defaultLayout);
+        const parsed = JSON.parse(raw);
+
+        // fallbacky pro starší verze
+        if(typeof parsed.badgeScale !== "number") parsed.badgeScale = DEFAULT_BADGE_SCALE;
+        if(typeof parsed.showDate !== "boolean") parsed.showDate = true;
+        if(!Array.isArray(parsed.salons)) parsed.salons = [];
+
+        return parsed;
+      }catch(e){
+        return structuredClone(defaultLayout);
+      }
+    }
+
+    function saveLayout(layout){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    }
+
+    let layout = loadLayout();
+    appState.badgeScale = layout.badgeScale ?? DEFAULT_BADGE_SCALE;
+    appState.showDate = layout.showDate ?? true;
+
+    // ---------- DOM ----------
+    const editorEl = document.getElementById("editor");
+    const stageEl = document.getElementById("stage");
+    const modePill = document.getElementById("modePill");
+    const scalePill = document.getElementById("scalePill");
+
+    const toggleEditBtn = document.getElementById("toggleEditBtn");
+    const addSalonBtn = document.getElementById("addSalonBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const salonSelect = document.getElementById("salonSelect");
+    const nameInput = document.getElementById("nameInput");
+    const bgColorInput = document.getElementById("bgColorInput");
+    const linkInput = document.getElementById("linkInput");
+    const scaleInput = document.getElementById("scaleInput");
+    const showDateToggle = document.getElementById("showDateToggle");
+
+    const saveTextBtn = document.getElementById("saveTextBtn");
+    const copyPosBtn = document.getElementById("copyPosBtn");
+    const deleteBtn = document.getElementById("deleteBtn");
+
+    // UI init
+    modePill.textContent = EDIT_MODE ? "EDIT" : "VIEW";
+    scalePill.textContent = `scale: ${Number(appState.badgeScale).toFixed(2)}`;
+    document.documentElement.style.setProperty("--badgeScale", String(appState.badgeScale));
+
+    if(EDIT_MODE){
+      editorEl.classList.add("on");
+    }
+
+    // ---------- Rendering ----------
+    function formatLine(salon){
+      // data (zatím placeholdery – později z Google Sheets)
+      const d = appState.liveDataById[salon.id] || {};
+      const value = d.value ?? "…";
+      const pct = d.pct ?? "…";
+      const last = d.last ?? "…";
+
+      // 1 řádek, bez popisků
+      // Varianta: Název / cena / % / datum
+      // Datum vypínatelné
+      if(appState.showDate){
+        return `${salon.name} / ${value} / ${pct} / ${last}`;
+      }
+      return `${salon.name} / ${value} / ${pct}`;
+    }
+
+    function clearBadges(){
+      [...stageEl.querySelectorAll(".badge")].forEach(el => el.remove());
+    }
+
+    function renderBadges(){
+      clearBadges();
+
+      layout.salons.forEach(salon => {
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.dataset.id = salon.id;
+        badge.style.left = salon.xPct + "%";
+        badge.style.top = salon.yPct + "%";
+        badge.style.background = salon.bg || "#fff1a6";
+
+        const line = document.createElement("div");
+        line.className = "line";
+        line.textContent = formatLine(salon);
+        badge.appendChild(line);
+
+        if(appState.selectedId === salon.id) badge.classList.add("selected");
+
+        // click behavior
+        badge.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+
+          if(EDIT_MODE){
+            selectSalon(salon.id);
+            return;
+          }
+
+          // view mode: link pokud existuje
+          if(salon.link){
+            window.open(salon.link, "_blank", "noopener,noreferrer");
+          }
+        });
+
+        // drag only in edit
+        if(EDIT_MODE){
+          makeDraggable(badge);
+        }
+
+        stageEl.appendChild(badge);
+      });
+    }
+
+    // ---------- Selection + Editor sync ----------
+    function populateSelect(){
+      salonSelect.innerHTML = "";
+      layout.salons.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.id;
+        salonSelect.appendChild(opt);
+      });
+    }
+
+    function getSalonById(id){
+      return layout.salons.find(s => s.id === id) || null;
+    }
+
+    function selectSalon(id){
+      appState.selectedId = id;
+      const s = getSalonById(id);
+      if(!s) return;
+
+      salonSelect.value = id;
+      nameInput.value = s.name || "";
+      bgColorInput.value = s.bg || "#fff1a6";
+      linkInput.value = s.link || "";
+
+      scaleInput.value = String(appState.badgeScale);
+      showDateToggle.checked = !!appState.showDate;
+
+      renderBadges();
+    }
+
+    // Stage click: unselect
+    stageEl.addEventListener("click", () => {
+      if(!EDIT_MODE) return;
+      appState.selectedId = null;
+      renderBadges();
+    });
+
+    // ---------- Dragging ----------
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function makeDraggable(el){
+      let dragging = false;
+
+      const onDown = (e) => {
+        dragging = true;
+        e.preventDefault();
+        e.stopPropagation();
+        selectSalon(el.dataset.id);
+      };
+
+      const onMove = (e) => {
+        if(!dragging) return;
+
+        const rect = stageEl.getBoundingClientRect();
+        const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+
+        let x = (clientX - rect.left) / rect.width;
+        let y = (clientY - rect.top) / rect.height;
+
+        // shift = jemně (zpomalení) – hlavně na desktopu
+        if(e.shiftKey){
+          // při shift jen "zpomalíme" posun tím, že interpolujeme k předchozí hodnotě
+          const id = el.dataset.id;
+          const s = getSalonById(id);
+          if(s){
+            const prevX = s.xPct / 100;
+            const prevY = s.yPct / 100;
+            x = prevX + (x - prevX) * 0.25;
+            y = prevY + (y - prevY) * 0.25;
+          }
+        }
+
+        x = clamp(x, 0.01, 0.99);
+        y = clamp(y, 0.01, 0.99);
+
+        const id = el.dataset.id;
+        const s = getSalonById(id);
+        if(!s) return;
+
+        s.xPct = +(x * 100).toFixed(2);
+        s.yPct = +(y * 100).toFixed(2);
+
+        // render jen posun (bez kompletního rerenderu)
+        el.style.left = s.xPct + "%";
+        el.style.top = s.yPct + "%";
+      };
+
+      const onUp = () => {
+        if(!dragging) return;
+        dragging = false;
+        saveLayout(layout);
+      };
+
+      el.addEventListener("mousedown", onDown);
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+
+      el.addEventListener("touchstart", onDown, {passive:false});
+      window.addEventListener("touchmove", onMove, {passive:false});
+      window.addEventListener("touchend", onUp);
+    }
+
+    // ---------- Editor actions ----------
+    function ensureSelected(){
+      if(!appState.selectedId && layout.salons.length){
+        selectSalon(layout.salons[0].id);
+      }
+    }
+
+    function randomId(){
+      return "salon_" + Math.random().toString(16).slice(2, 10);
+    }
+
+    if(EDIT_MODE){
+      toggleEditBtn.textContent = "EDIT: ON";
+      toggleEditBtn.disabled = true; // edit mode je daný URL parametrem
+
+      populateSelect();
+      ensureSelected();
+    }
+
+    salonSelect.addEventListener("change", () => {
+      selectSalon(salonSelect.value);
+    });
+
+    addSalonBtn.addEventListener("click", () => {
+      const id = randomId();
+      layout.salons.push({
+        id,
+        name: "Nový salon",
+        xPct: 50,
+        yPct: 70,
+        bg: "#fff1a6",
+        link: ""
+      });
+      saveLayout(layout);
+      populateSelect();
+      selectSalon(id);
+      renderBadges();
+    });
+
+    saveTextBtn.addEventListener("click", () => {
+      const s = getSalonById(appState.selectedId);
+      if(!s) return;
+
+      s.name = nameInput.value.trim() || s.name;
+      s.bg = bgColorInput.value || s.bg;
+      s.link = linkInput.value.trim();
+
+      // global scale
+      const sc = Number(scaleInput.value);
+      if(!Number.isNaN(sc) && sc > 0.20 && sc < 2.00){
+        appState.badgeScale = sc;
+        layout.badgeScale = sc;
+        document.documentElement.style.setProperty("--badgeScale", String(sc));
+        scalePill.textContent = `scale: ${Number(sc).toFixed(2)}`;
+      }
+
+      appState.showDate = !!showDateToggle.checked;
+      layout.showDate = appState.showDate;
+
+      saveLayout(layout);
+      renderBadges();
+    });
+
+    copyPosBtn.addEventListener("click", async () => {
+      const s = getSalonById(appState.selectedId);
+      if(!s) return;
+      const text = JSON.stringify({ id: s.id, xPct: s.xPct, yPct: s.yPct }, null, 2);
+      try{
+        await navigator.clipboard.writeText(text);
+        copyPosBtn.textContent = "Zkopírováno";
+        setTimeout(() => copyPosBtn.textContent = "Zkopírovat pozici", 900);
+      }catch(e){
+        alert(text);
+      }
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      const id = appState.selectedId;
+      if(!id) return;
+      const idx = layout.salons.findIndex(s => s.id === id);
+      if(idx === -1) return;
+      layout.salons.splice(idx, 1);
+      saveLayout(layout);
+      populateSelect();
+      appState.selectedId = null;
+      ensureSelected();
+      renderBadges();
+    });
+
+    exportBtn.addEventListener("click", async () => {
+      const json = JSON.stringify(layout, null, 2);
+      try{
+        await navigator.clipboard.writeText(json);
+        exportBtn.textContent = "Zkopírováno do schránky";
+        setTimeout(() => exportBtn.textContent = "Export JSON", 1100);
+      }catch(e){
+        // fallback: download
+        const blob = new Blob([json], {type:"application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "gl_map_layout.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    importBtn.addEventListener("click", () => {
+      const json = prompt("Vlož JSON (layout):");
+      if(!json) return;
+      try{
+        const parsed = JSON.parse(json);
+        if(!parsed || !Array.isArray(parsed.salons)) throw new Error("Invalid");
+        layout = parsed;
+        if(typeof layout.badgeScale !== "number") layout.badgeScale = DEFAULT_BADGE_SCALE;
+        if(typeof layout.showDate !== "boolean") layout.showDate = true;
+
+        appState.badgeScale = layout.badgeScale;
+        appState.showDate = layout.showDate;
+
+        document.documentElement.style.setProperty("--badgeScale", String(appState.badgeScale));
+        scalePill.textContent = `scale: ${Number(appState.badgeScale).toFixed(2)}`;
+
+        saveLayout(layout);
+        populateSelect();
+        ensureSelected();
+        renderBadges();
+      }catch(e){
+        alert("Import se nepovedl. Zkontroluj JSON.");
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      if(!confirm("Resetnout na default?")) return;
+      layout = structuredClone(defaultLayout);
+      appState.badgeScale = layout.badgeScale;
+      appState.showDate = layout.showDate;
+
+      document.documentElement.style.setProperty("--badgeScale", String(appState.badgeScale));
+      scalePill.textContent = `scale: ${Number(appState.badgeScale).toFixed(2)}`;
+
+      saveLayout(layout);
+      populateSelect();
+      ensureSelected();
+      renderBadges();
+    });
+
+    // ---------- Placeholder live data ----------
+    // Zatím jen demo. Až dodáš Sheet, nahradíme fetch na Apps Script endpoint.
+    function seedDemoData(){
+      appState.liveDataById = {
+        "salon_hairdo": { value: "34 901 €", pct: "12%", last: "30.1." },
+        "salon_viador": { value: "9 120 €", pct: "3%", last: "29.1." }
+      };
+    }
+    seedDemoData();
+
+    // Render initial
+    renderBadges();
+
+    // ---------- (PŘIPRAVENO) Napojení na Google Sheets ----------
+    // Sem později dáme URL na Apps Script (web app), který vrátí JSON podle salon_id.
+    // Struktura očekávaného JSON:
+    // {
+    //   "salon_hairdo": {"value":"34901 €","pct":"12%","last":"2026-01-30"},
+    //   "salon_viador": {"value":"9120 €","pct":"3%","last":"2026-01-29"}
+    // }
+    //
+    // async function refreshFromSheet(){
+    //   const url = "PASTE_APPS_SCRIPT_URL_HERE";
+    //   const r = await fetch(url, { cache: "no-store" });
+    //   const data = await r.json();
+    //   appState.liveDataById = data || {};
+    //   renderBadges();
+    // }
+    //
+    // refreshFromSheet();
+    // setInterval(refreshFromSheet, 60_000); // každou minutu
+  </script>
+</body>
+</html>
